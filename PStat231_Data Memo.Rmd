@@ -1,0 +1,52 @@
+---
+title: "PStat 231 Data Memo"
+author: "Gabrielle Salo"
+date: "2022-10-03"
+output: html_document
+---
+
+**Your final project is intended to showcase your analytical abilities and model-building skills on a dataset of your choosing. Your data memo should be written in the form of a short paper; if you've already read your data file into R, you can include code or figures, but not required to. Your memo should answer all of the following:**
+
+## An overview of your dataset
+### What does it include?
+Where and how will you be obtaining it? Include the link and source.
+About how many observations? How many predictors?
+What types of variables will you be working with?
+Is there any missing data? About how much? Do you have an idea for how to handle it?
+
+14 biologists collected information on animals and recorded it into a single database. HormoneBase is a database that aims to include all available measures of plasma androgens (testosterone and 11-ketotestosterone) and glucocorticoids (corticosterone and cortisol; including baseline and stress-induced measures) from free-living, adult vertebrates, including fish, amphibians, reptiles, birds, and mammals. As of December 2017, we have attempted to compile all records of these circulating hormones published through 2015.
+
+_The data comes from_
+https://hormonebase.org/database/
+https://figshare.com/articles/dataset/HormoneBase/5649727
+
+_The number of observations is_
+4,087
+
+_The number of variables in the database is_
+90, but many have primarily null information so the amount will be reduced. The inforamtion will be handled through data exploration and variable research to determine if there is much interest in inclusion of the variable or not. This is specifically important for variables that are over half filled out, as it may be interesting to model limiting the observations and again limiting the variables.
+
+### An overview of your research question(s)
+**What variable(s) are you interested in predicting? What question(s) are you interested in answering? Name your response/outcome variable(s) and briefly describe it/them. Will these questions be best answered with a classification or regression approach? Which predictors do you think will be especially useful? Is the goal of your model descriptive, predictive, inferential, or a combination? Explain.**
+
+I am interested in predicting the regressive response of hormone stress levels based on the predictors Stressor type, Life_Stage, Taxonomic group, location, elevation and years, and breeding cycle.
+
+With additional variables for interest, I aim to do a combination of a predictive in exploratory mode and then inferential to see if/how hormone stress levels differ between life_stage of prebreeding and pregnant animals. I am not sure if this will be a particularly useful, but my hypothesis is that it is.
+
+### Your proposed project timeline
+
+**When do you plan on having your data set loaded, beginning your exploratory data analysis, etc? Provide a general timeline for the rest of the quarter.**
+
+Machine Learning Development (In Class Learning) Week 0-6
+Planning Week 1
+Data Exploration Week 2-6
+Data Modeling Week 7
+Data Testing Week 8
+Report Completion Week 9-10
+
+### Any questions or concerns
+
+**Are there any problems or difficult aspects of the project you anticipate? Any specific questions you have for me/the instructional team? **
+
+I do not have a significant background in medical data but am enrolled in a few courses to assist with the interpretability. I am in 231 and intend to utilize this as a beginning exploration into a topic I aim to do my disertation in, but not on this specific data.
+
