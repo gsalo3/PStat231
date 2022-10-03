@@ -1,0 +1,242 @@
+---
+title: "PStat231_Homework1"
+author: "Gabrielle Salo"
+date: "2022-10-02"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE,
+                      warning = FALSE)
+```
+
+## Machine Learning Main Ideas
+
+### Question 1:
+
+**Define supervised and unsupervised learning. What are the difference(s) between them?**
+
+The primary difference is the Labeling of Data (Providing a response vs no response value)
+
+*Supervised* learning utilizes a known response, where the actual data, Y, is the supervisor. Here, the model needs observed outputs and inputs. In supervised learning, the model accurately predicts future response given predictors, understanding how predictors affect response, how to find the "best" model for response given predictors, and assess the quality of our predictions and/or estimations. Examples include Continuous Outcome (Linear Regression), Categorical Ourcomes (Logistic regression, decision tree, naive bayes, K-nearest neighbors), and Regularization (Ridge, Lasso(also dimension reduction)), additionally, random forests, support vector machine(s), and neural networks.
+
+It can also be categorized between "Classification" for categorical predictors, and "Regression" for numerical predictors. $^1$
+
+Examples include Continuous Outcome (Linear Regression), Categorical Ourcomes (Logistic regression, decision tree, naive bayes, K-nearest neighbors), and Regularization (Ridge, Lasso(also dimension reduction)), additionally, random forests, support vector machine(s), and neural networks.
+
+*Unsupervised* learning does not utilize a known response, where there is no Y, and thus no supervisor. Only predictors are input into unsupervised learning.
+
+This type uses ML to analyze and cluster "hidden patterns" without observed Y values using 3 main tasks: Clustering via something like K-means, Association to find relationships between variables, and Dimensionality Reduction when there are too many variables. $^1$
+
+Examples include Clustering (DBSCAN, Hierarchial clustering, K-means, gaussian mixtures (EM)), Dimension reduction (PCA), as well as Neural networks.
+
+### Question 2:
+
+**Explain the difference between a regression model and a classification model, specifically in the context of machine learning.**
+
+Regression models to a quantitative response, Y, with numerical values such as price, blood pressure, etc. In machine learning, with two errors: Training Mean Squared Error(MSE), where you take the average of the sum of the squares of the difference between the observed and model expected values, and the Test MSE, where the difference is between the unused observed values to the model expected values, with a desire of minimizing the test MSE. If no test data available, cross-validation can be used for estimating test MSE using training data
+
+Classification models to a qualitative response, Y, with categorical values such as survived/died, grade letters, etc. Testing error is similar to the Regression case.
+
+### Question 3:
+
+**Name two commonly used metrics for regression ML problems. Name two commonly used metrics for classification ML problems.**
+
+Two commonly used metrics for Regression ML problems is Training Mean Squared Error (MSE), and Test MSE. Two commonly used metrics for Classification ML problems is Training Error Rate, and Test Error Rate.
+
+### Question 4:
+
+**As discussed, statistical models can be used for different purposes. These purposes can generally be classified into the following three categories. Provide a brief description of each.**
+
+**Descriptive models:** Aims to choose a model that best visually emphasizes a trend in data (ie a line in a scatterplot)
+
+**Inferential models:** Aim is to test theories, investigate possible causal claims, and to state a relationship between outcome and predictor(s).
+
+**Predictive models:** Aims to predict the response, Y, with minimum reducible error. This is not focused on hypothesis tests.
+
+### Question 5:
+
+**Predictive models are frequently used in machine learning, and they can usually be described as either mechanistic or empirically-driven. Answer the following questions.**
+
+**Define mechanistic. Define empirically-driven. How do these model types differ? How are they similar?**
+
+Mechanistic is a parametric model, which assumes a shape of the function f exists, and the model will come close but will not match the true unknown f ie $\beta_0 + \beta_1 + ...$. Essentially, we think we know something about this data.
+
+Empirically-Driven is a non-parametric model which needs a large number of observateions because it makes no initial assumptions about the shape of f. Essentially, we know very little, if anything, about this data.
+
+The definitions highlight their differences, but their commonalities include the ability to be flexible and have a risk of overfitting.
+
+**In general, is a mechanistic or empirically-driven model easier to understand? Explain your choice.**
+
+Mechanistic is easier to understand because it falls in line with a simple parametric and regression trends, where as empirically-driven doesn't start with an observed outcome so there is initially a little guesswork involved.
+
+**Describe how the bias-variance tradeoff is related to the use of mechanistic or empirically-driven models.**
+
+A simpler model leads to higher bias and lower variance. A complex model tends to have higher variance and lower bias. Both models have a bias-variance tradeoff with an aim to minimize the variance and squared bias
+
+### Question 6:
+
+**A political candidate's campaign has collected some detailed voter history data from their constituents. The campaign is interested in two questions:**
+
+**A. Given a voter's profile/data, how likely is it that they will vote in favor of the candidate?**
+
+**B. How would a voter's likelihood of support for the candidate change if they had personal contact with the candidate?**
+
+**Classify each question as either predictive or inferential. Explain your reasoning for each.**
+
+A is predictive because it aims to identify a combination of features that fit to predict the outcome of voting in favor of a candidate with minimum error, not focused on hypothesis. Here, it is a little more exploratory.
+
+B is inferential because it aims to test it focuses on the significance of a feature of having "had personal contact with the candidate". It is testing a theory that there is a difference in voting outcome with an expectation to state the relationship between the outcome and predictor(s).
+
+## Exploratory Data Analysis
+
+This section will ask you to complete several exercises. For this homework assignment, we'll be working with the mpg data set that is loaded when you load the tidyverse. Make sure you load the tidyverse and any other packages you need.
+
+Exploratory data analysis (or EDA) is not based on a specific set of rules or formulas. It is more of a state of curiosity about data. It's an iterative process of:
+
+generating questions about data visualize and transform your data as necessary to get answers use what you learned to generate more questions A couple questions are always useful when you start out. These are "what variation occurs within the variables," and "what covariation occurs between the variables."
+
+You should use the tidyverse and ggplot2 for these exercises.
+
+```{r Packages}
+#install.packages("tidyverse")
+#install.packages("tidymodels")
+#install.packages("ISLR")
+#install.packages("ggplot2")
+#install.packages("corrplot")
+#install.packages("ggthemes")
+
+library(tidyverse)
+library(tidymodels)
+library(ISLR)
+library(ggplot2)
+library(corrplot)
+library(dplyr)
+library(ggthemes)
+
+summary(mpg)
+#?mpg
+```
+
+### Exercise 1:
+
+**We are interested in highway miles per gallon, or the hwy variable. Create a histogram of this variable. Describe what you see/learn.**
+
+The histogram of the highway miles per gallon appears to have 2 peaks, perhaps a bimodal normal, with a frequency of vehicles peaking around 80 between 15-20 mpg and 25-30 mpg
+
+```{r Ex1}
+hist(mpg$hwy)
+```
+
+### Exercise 2:
+
+**Create a scatterplot. Put hwy on the x-axis and cty on the y-axis. Describe what you notice. Is there a relationship between hwy and cty? What does this mean?**
+
+At a first glance, there appears to be a linear trend between the highway miles per gallon(mpg) and city mpg. That is, as city mpg increases, highway mpg also increases. This makes since as both variables describe the fuel efficiency of the vehicles.
+```{r Ex2}
+plot(mpg$hwy, mpg$cty)
+```
+
+### Exercise 3:
+
+**Make a bar plot of manufacturer. Flip it so that the manufacturers are on the y-axis. Order the bars by height. Which manufacturer produced the most cars? Which produced the least?**
+
+Dodge produced the most (37) while Lincoln produced the least (3).
+
+```{r Ex3, fig.height=8, fig.width=9}
+dcounts <- data.frame(table(mpg$manufacturer))
+ocounts <- dcounts[order(dcounts$Freq, decreasing=TRUE),]
+
+barplot(ocounts$Freq, names.arg=ocounts$Var1, main="Manufacturer Distribution",  horiz=TRUE, las=1)
+```
+### Exercise 4:
+
+**Make a box plot of hwy, grouped by cyl. Do you see a pattern? If so, what?**
+
+Yes, there appears to be a pattern where the highway mpg decrease as the cylinders increase. This makes since as more cylinders take more fuel to perform at higher rates and speeds, in general. It does not appear linear though, with 4 and 5 cylinders nearly even by mean.
+
+```{r}
+boxplot(mpg$hwy ~ mpg$cyl)
+```
+
+### Exercise 5:
+
+**Use the corrplot package to make a lower triangle correlation matrix of the mpg dataset. (Hint: You can find information on the package here.)**
+
+**Which variables are positively or negatively correlated with which others? Do these relationships make sense to you? Are there any that surprise you?**
+
+Engine Displacement is highly correlated with the # cylinders which makes sense, with a positive correlation of 0.98. City to Highway MPG has a high positive correlation of 0.77. Highway and City MPG also have a positive correlation with Year which is interesting and may be a potential for review. The remainder of the numerical variables have a negative correlation, so City and Highway MPG and Year are negatively correlated with Displacement and Cylindars. This makes sense for the MPGs, but the Year is again interesting. The negative correlation indicates smaller engines as time progresses.
+
+```{r}
+M2 <- mpg
+M3 <- M2 %>% select(displ, year, cyl, cty, hwy) %>% head()
+summary(M3)
+
+cM3 <- cor(M3)
+corrplot(cM3,order="AOE", diag=FALSE, addCoef.col='black',type='lower')
+
+```
+
+## 231 Students Only:
+
+### Exercise 6:
+
+**Recreate the following graphic, as closely as you can. Hint: Use the ggthemes package.**
+
+```{r}
+# Scatter plot
+sp <- ggplot(M2, aes(hwy, class)) + geom_point()
+sp
+
+#install.packages("hrbrthemes")
+#install.packages("viridis")
+library(hrbrthemes)
+library(viridis)
+
+M2 %>%
+  ggplot(aes(x=hwy, y=class )) + #fill=drv
+    geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +
+    theme_ipsum() +
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=11)
+    ) +
+    ggtitle("A boxplot with jitter") +
+    ylab("Vehicle Class") +
+    xlab("Highway MPG")
+```
+
+### Exercise 7
+
+**Recreate the following graphic.**
+
+```{r}
+# Boxblot
+M2$drv <- as.factor(M2$drv)
+bxp <- ggplot(M2, aes(x = class, y = hwy)) +
+  geom_boxplot(aes(fill = drv))
+bxp
+```
+
+### Exercise 8
+
+**Recreate the following graphic.**
+
+```{r}
+base <- ggplot(M2, aes(displ, hwy, color = drv, linetype=drv,)) +
+  geom_jitter() + 
+  geom_smooth(method="loess", fill=NA,color="blue")
+base
+
+```
+
+
+## References
+
+1.  IBM. <https://www.ibm.com/cloud/blog/supervised-vs-unsupervised-learning>. 12 March 2021
