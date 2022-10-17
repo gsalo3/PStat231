@@ -1,0 +1,292 @@
+---
+title: "Homework 2"
+author: "PSTAT 131/231 - Gabrielle Salo"
+output:
+    html_document:
+      toc: true
+      toc_float: true
+      code_folding: show
+---
+
+## Linear Regression
+
+For this lab, we will be working with a data set from the UCI (University of California, Irvine) Machine Learning repository ([see website here](http://archive.ics.uci.edu/ml/datasets/Abalone)). The full data set consists of $4,177$ observations of abalone in Tasmania. (Fun fact: [Tasmania](https://en.wikipedia.org/wiki/Tasmania "Tasmania") supplies about $25\%$ of the yearly world abalone harvest.)
+
+![*Fig 1. Inside of an abalone shell.*](https://cdn.shopify.com/s/files/1/1198/8002/products/1d89434927bffb6fd1786c19c2d921fb_2000x_652a2391-5a0a-4f10-966c-f759dc08635c_1024x1024.jpg?v=1582320404){width="152"}
+
+The age of an abalone is typically determined by cutting the shell open and counting the number of rings with a microscope. The purpose of this data set is to determine whether abalone age (**number of rings + 1.5**) can be accurately predicted using other, easier-to-obtain information about the abalone.
+
+The full abalone data set is located in the `\data` subdirectory. Read it into *R* using `read_csv()`. Take a moment to read through the codebook (`abalone_codebook.txt`) and familiarize yourself with the variable definitions.
+
+Make sure you load the `tidyverse` and `tidymodels`!
+
+```{r setup}
+library(MASS)
+library(ggplot2)
+library(tidyverse)
+library(corrr)
+library(tidymodels)
+library(corrplot)
+library(ggthemes)
+library(dplyr)
+knitr::opts_chunk$set(echo=T, 
+                      eval=T,
+                      cache=T,
+                      results='markup', 
+                      message=F,
+                      warning=F, 
+                      fig.height=6,
+                      fig.width=6,
+                      fig.align='center')
+```
+
+```{r readdata}
+data <- read.csv("C:/Users/gabri/Desktop/Desktop New/Desktop/PHD PROGRAM/2022 Q4 Fall Work/PStat 231/Labs/PStat231/abalone.csv", header=TRUE, sep=",")
+data <- data.frame(data)
+glimpse(data)
+```
+
+### Question 1
+
+Your goal is to predict abalone age, which is calculated as the number of rings plus 1.5. Notice there currently is no `age` variable in the data set. Add `age` to the data set.
+
+Assess and describe the distribution of `age`.
+
+```{r Q1}
+data$Age <- data$Rings+1.5
+head(data)
+hist(data$Age)
+mean(data$Age)
+
+#cor_ab %>%
+#  stretch() %>%
+#  ggplot(aes(x, y, fill = r)) +
+#  geom_tile() +
+#  geom_text(aes(label = as.character(fashion(r))))
+
+ggplot(data, aes(factor(Sex), Age)) +
+  geom_boxplot() + 
+  geom_jitter(alpha = 0.1) +
+  xlab("Sex")
+
+```
+
+Per the data provided, the Average age of an abalone is 11.4 years. The plot looks to be poisson with lambda of 11.4.
+
+### Question 2
+
+Split the abalone data into a training set and a testing set. Use stratified sampling. You should decide on appropriate percentages for splitting the data.
+
+*Remember that you'll need to set a seed at the beginning of the document to reproduce your results.*
+
+```{r Q2}
+set.seed(7)
+dataog <- data
+data2 <- subset(dataog, select = -c(Rings)) %>% na.omit 
+data1 <- data2 %>% filter(Sex == "M" | Sex =="F")
+data1 <- subset(data1, select = -c(Sex))
+ab_split <- initial_split(data1, prop = 0.80,
+                                strata = Age,
+                                breaks = 4)
+
+#?initial_split
+ab_train <- training(ab_split) #80% of the data
+ab_test <- testing(ab_split)   #20% of the data
+
+#hist(ab_train$Age)
+#hist(ab_test$Age)
+```
+
+### Question 3
+
+Using the **training** data, create a recipe predicting the outcome variable, `age`, with all other predictor variables. Note that you should not include `rings` to predict `age`. Explain why you shouldn't use `rings` to predict `age`.
+
+Steps for your recipe:
+
+1.  dummy code any categorical predictors
+
+2.  create interactions between
+
+    -   `type` and `shucked_weight`,
+    -   `longest_shell` and `diameter`,
+    -   `shucked_weight` and `shell_weight`
+
+3.  center all predictors, and
+
+4.  scale all predictors.
+
+You'll need to investigate the `tidymodels` documentation to find the appropriate step functions to use.
+
+Answer: Rings is not appropriate to use when predicting age because Age and rings has a correlation of 1, because Age is Rings +1.5, a one to one line relationship.
+
+```{r Q3}
+#glm(Age~.-Rings,family=poisson,data=data)
+names(data1)
+
+rec <- recipe(Age~., data=ab_train)
+#gen <- tribble(~sex_M, ~sex_F, ~sex_I, "M", "F", "I")
+
+#dummy_multi_choice_rec <- recipe(~., data = gen) %>% step_dummy_multi_choice(starts_with("sex")) %>% prep()
+#bake(dummy_multi_choice_rec, new_data = NULL)
+#  step_dummy_multi_choice(all_nominal()) %>%
+
+
+ab_recipe <- rec %>%
+#  step_dummy(Sex) %>%
+#  step_interact(terms = ~ starts_with(Sex):Shucked_weight) %>%
+  step_interact(terms = ~ Length:Diameter) %>%
+  step_interact(terms = ~ Shucked_weight:Shell_weight) %>%
+  step_center(all_numeric_predictors()) %>%
+  step_scale(all_numeric_predictors())
+
+summary(ab_recipe)
+```
+
+### Question 4
+
+Create and store a linear regression object using the `"lm"` engine.
+
+```{r Q4}
+#ab_train <- training(ab_split) #80% of the data
+#ab_test <- testing(ab_split)   #20% of the data
+
+lm_model <- linear_reg() %>% 
+  set_engine("lm")
+#lr_mod <- logistic_reg() %>% set_engine("glm")
+
+```
+
+### Question 5
+
+Now:
+
+1.  set up an empty workflow,
+2.  add the model you created in Question 4, and
+3.  add the recipe that you created in Question 3.
+
+```{r Q5}
+ab_workflow <- workflow() %>%
+  add_model(lm_model) %>%
+  add_recipe(ab_recipe)
+```
+
+### Question 6
+
+Use your `fit()` object to predict the age of a hypothetical female abalone with longest_shell = 0.50, diameter = 0.10, height = 0.30, whole_weight = 4, shucked_weight = 1, viscera_weight = 2, shell_weight = 1.
+
+Predicted Age is about 22.7.
+
+```{r Q6}
+ab_workflow %>% 
+  fit(ab_train)
+
+ab_fit <- ab_workflow %>%
+  fit(data=ab_train)
+
+```
+
+```{r Q6Option2}
+lm_model <- linear_reg() %>% 
+  set_engine("lm")
+
+### Workflow
+
+wkflow <- workflow() %>% 
+  add_model(lm_model) %>% 
+  add_recipe(ab_recipe)
+
+fitab <- fit(wkflow, ab_train)
+
+### Model Results
+
+fitab %>% 
+  tidy()
+
+new_obs = data.frame( Length = 0.50, Diameter = 0.10, Height = 0.30, Whole_weight = 4, Shucked_weight = 1, Viscera_weight = 2, Shell_weight = 1)
+
+predict(ab_fit, new_data = new_obs)
+
+```
+
+### Question 7
+
+Now you want to assess your model's performance. To do this, use the `yardstick` package:
+
+1.  Create a metric set that includes *R^2^*, RMSE (root mean squared error), and MAE (mean absolute error).
+2.  Use `predict()` and `bind_cols()` to create a tibble of your model's predicted values from the **training data** along with the actual observed ages (these are needed to assess your model's performance).
+3.  Finally, apply your metric set to the tibble, report the results, and interpret the *R^2^* value.
+
+```{r Q7}
+library(yardstick)
+library(dplyr)
+
+#1
+(class_metrics <- metric_set(rmse, mae))
+
+#2
+new_obs = data.frame( Length = 0.50, Diameter = 0.10, Height = 0.30, Whole_weight = 4, Shucked_weight = 1, Viscera_weight = 2, Shell_weight = 1)
+
+pAge <- predict(ab_fit, new_data = ab_test)
+
+abpAge <- bind_cols(ab_test,pAge) %>%
+  metrics(truth=Age, estimate=.pred)
+
+#3
+```
+
+the RMSE is 2.33, RSQ is 0.4, and MAE is 1.75. The RSQ being 0.4 indicates about 40% of the data is explained by the model.
+
+### Required for 231 Students
+
+In lecture, we presented the general bias-variance tradeoff, which takes the form:
+
+$$
+E[(y_0 - \hat{f}(x_0))^2]=Var(\hat{f}(x_0))+[Bias(\hat{f}(x_0))]^2+Var(\epsilon)
+$$
+
+where the underlying model $Y=f(X)+\epsilon$ satisfies the following:
+
+-   $\epsilon$ is a zero-mean random noise term and $X$ is non-random (all randomness in $Y$ comes from $\epsilon$);
+-   $(x_0, y_0)$ represents a test observation, independent of the training set, drawn from the same model;
+-   $\hat{f}(.)$ is the estimate of $f$ obtained from the training set.
+
+#### Question 8
+
+Which term(s) in the bias-variance tradeoff above represent the reproducible error? Which term(s) represent the irreducible error?
+
+$Var(\hat{f}(x_0))+[Bias(\hat{f}(x_0))]^2$
+
+is the reproducible error
+
+$Var(\epsilon)$ is the Irreducible Error
+
+#### Question 9
+
+Using the bias-variance tradeoff above, demonstrate that the expected test error is always at least as large as the irreducible error.
+
+$$
+E[(y_0 - \hat{f}(x_0))^2]=Var(\hat{f}(x_0))+[Bias(\hat{f}(x_0))]^2+Var(\epsilon)
+$$
+
+Want $E[(y_0 - \hat{f}(x_0))^2]=Var(\hat{f}(x_0))+[Bias(\hat{f}(x_0))]^2+Var(\epsilon)$. So we have $E[(y_0 - \hat{f}(x_0))^2] \ge 0$ always, $Var(\hat{f}(x_0))\ge 0$ always, $[Bias(\hat{f}(x_0))]^2 \ge 0$ always, and $Var(\epsilon) \ge 0$ always. Let's label it A=B+C+D respectively. Minimizing B and C indicates the expected test error is equal to the irreducible error. If either B or C or both take on any values, then the expected test error is greater than the irreducible error. Since all terms are non-negative, we are done.
+
+#### Question 10
+
+Prove the bias-variance tradeoff.
+
+Hints:
+
+-   use the definition of $Bias(\hat{f}(x_0))=E[\hat{f}(x_0)]-f(x_0)$;
+-   reorganize terms in the expected test error by adding and subtracting $E[\hat{f}(x_0)]$
+
+$y=f(x)+\epsilon$ $E[\epsilon]=0, var(\epsilon)=E[\epsilon^2]=\sigma_\epsilon^2$
+
+\$E[(y-\hat{f}(x))\^2]=E[(f(x)-\epsilon-\hat{f}(x))\^2 \$ $= E[(f(x)-\hat{f}(x))^2 +E[\epsilon^2] +2E[(f(x)-\hat{f}(x))\epsilon ]$ \$= E[(f(x)-\hat{f}(x))\^2 +\sigma\epsilon\^2 +2E[(f(x)-\hat{f}(x))]E[\epsilon], where \space E[\epsilon]=0 \$ \$= E[(f(x)-\hat{f}(x))\^2 +\sigma\epsilon\^2 \$
+
+Now that we have the $var(\epsilon)$ at the end, we can focus on the first term to complete the proof \$= E[(f(x)-\hat{f}(x))\^2 = E[((f(x)-E(\hat{f}(x)])-(\hat{f}(x)-E[\hat{f}(x)]))\^2] \$ $=(E[\hat{f}(x)]-f(x))^2 + E[(\hat{f}(x)-E[\hat{f}(x)])^2]-2(f(x)-E[\hat{f}(x)])E[(\hat{f}(x)-E[\hat{f}(x)])^2$ $=bias[\hat{f}(x)]^2+var(\hat{f}(x))$
+
+When we put them together, we get: $$
+E[(y_0 - \hat{f}(x_0))^2]=Var(\hat{f}(x_0))+[Bias(\hat{f}(x_0))]^2+Var(\epsilon)
+$$
+
+-   
