@@ -58,7 +58,8 @@ head(data)
 hist(data$Age)
 mean(data$Age)
 
-#cor_ab %>%
+#cor_ab %>% 
+#adding a thing
 #  stretch() %>%
 #  ggplot(aes(x, y, fill = r)) +
 #  geom_tile() +
