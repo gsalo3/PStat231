@@ -1,0 +1,483 @@
+---
+title: "PStat 231 Final Project: Stress Response from Environmental Factors"
+author: "Gabrielle Salo"
+date: "2022-12-06"
+output:
+    html_document:
+      toc: true
+      toc_float: true
+      code_folding: hide
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+## Introduction
+
+Environmental factors affect animal responses at both the physical and
+chemical level. One chemical level is the stress hormone. 14 biologists
+collected information on various animals and recorded the information in
+a single public database called HormoneBase. HormoneBase is a database
+that aims to include all available measures of plasma androgens
+(testosterone and 11-ketotestosterone) and glucocorticoids
+(corticosterone and cortisol; including baseline and stress-induced
+measures) from free-living, adult vertebrates, including fish,
+amphibians, reptiles, birds, and mammals. $^1$ This paper aims to
+analyze this information through machine learning techniques to identify
+if stress levels can be predicted or determined accurately based on
+external factors. Specifically, the interest is on the Female
+population.
+
+### Research Goal
+
+This paper aims to predict the categorical response of female hormone stress levels, specifically the base corticosterone/corisol concentrations, based on the predictors available from the combined databases. The potentially available variables for utilization captured in the multiple data sources include: Stressor type, location, elevation, and taxonomic group, among others. 
+
+If conclusive on a high absolute correlation between stress levels and other factors in animals, this could indicate an interest in said confounding locational or environmental factors that may affect human stress hormone concentration levels for future studies.
+
+### Project Outline
+
+The goal is to look at the female base corticosterone/ cortisol levels in animals across the world to identify if environmental factors affect the base stress hormone level. The data under analysis comes from the HormoneBase database, which contains compiled measures of steroid hormone levels from free-living populations of vertebrates. The information was gathered by multiple groups and aggregated to facilitate large-scale comparative analysis. 
+
+Studies were selected for inclusion if they contained data on circulating glucocorticoids (baseline and or 
+stress-induced corticosterone/cortisol) or androgens (testosterone/11-ketotestosterone) that: (i) were 
+from free-living populations, (ii) were collected from adults that had not been subject to an experimental 
+manipulation prior to sampling (e.g., of hormones or the environment), (iii) measured plasma levels, (iv) 
+did not pool data across males and females, or across adults and juveniles, and (v) were reported in or 
+could be converted to a standard unit of measurement (ng/mL). Published values were obtained from 
+text, tables, or supplementary materials, or extracted from published figures using the program Data Thief 
+III. When papers did not directly report the coefficient of variation, it was calculated from the standard 
+deviation or standard error and sample size. 
+
+This paper will cover the following forms of analysis to reach a determination for the research goal.
+
+-   Exploratory Data Analysis
+-   Model Building: Data Splitting, Recipe Building, and K-Fold Cross Validation
+-   Model Option Evaluation: Autoplot Evaluations and Accuracy of Classification, Random Forest, Boosted, and K-Nearest Neighbor models
+-   Best Fit Model: Evaluations and Results
+-   Conclusion
+
+This paper aims to identify a model through machine learning of the data recorded in HormoneBase.
+
+## Exploratory Data Analysis
+
+This preliminary step is a requirement before any analysis can be completed for any statistical modeling or machine learning. Here, the data is loaded, viewed, cleaned, and explored for a clear understanding of trends on relevant variables as well as determining variables or rows to keep. For instance, if the response variable has blank/unrecorded responses, those records would not be helpful in the final model. Likewise, if a predictor is primarily unrecorded, or has miscellaneous or ungroupable factor values, it may be an indication to remove the variable. The determinations of what to keep and what to remove occur in this stage.
+
+### Load and View
+
+The data is loaded and viewed to confirm the expected data was uploaded correctly. For reproducability of machine learning, the seed is set to 37.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=T, 
+                      eval=T,
+                      cache=T,
+                      results='markup', 
+                      message=F,
+                      warning=F, 
+                      fig.height=6,
+                      fig.width=6,
+                      fig.align='center')
+library(tidyverse)
+library(tidymodels)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(glmnet)
+library(caret)
+library(ranger)
+library(tune)
+library(discrim)
+library(kknn)
+library(lattice)
+library(poissonreg)
+library(corrr)
+library(MASS)
+library(rpart.plot)
+library(vip)
+library(janitor)
+library(randomForest)
+library(xgboost)
+```
+
+```{r readdata_filter}
+set.seed(37)
+getwd()
+
+data1 <- read.csv("C:/Users/gabri/Desktop/Desktop New/Desktop/PHD PROGRAM/2022 Q4 Fall Work/PStat 231/Final/HormoneBase_v1.csv", header=TRUE, sep=",")
+hb <- data.frame(data1)
+#glimpse(data1)
+summary(hb)
+hb %>% count(Vert_Group)
+```
+
+There are 4,087 observations in this database, with 90 potentially recorded variables, including the identifier. Many of the variables were removed before loading due to the uninformative nature for the response, such as the ranged years of study or the months of study, which were combined in the fem_bc_mean value. The supplemental material on the data indicates the presence of outliers to be removed. Ref ID 47, 7, 43, 428, 260, 231, 572, 439 with 2, 2, 4, 1, 2, 1, 1, 1 observations,
+respectively, were removed, all of the Bird species except ref id 231 is a mammal, 572 is a reptile, and 439 is a fish. Removing these observations leaves us with
+4,053 observations. The stressor's were grouped for analysis and contamination stressors are removed due to lack of information regarding type of contaminant. It is unknown if the contaminants effect hormone levels individually so they are removed as unclean datum. This leaves 4,011 observations. Additional environmental factors could be useful in identifying links between influxes. Additionally, for the purposes of simplifying this project, the mean values will be utilized rather than the minimum or maximum values, since the actual values are not provided. Other values, such as the meta data are removed for additional simplicity for the purpose of this analysis, leaving 24 variables remaining including the reference ID for variable of interest
+review if needed. Many of the observational values in some of the variables have primarily null information so the amount of variables or observations will be reduced depending on the Data Analysis. The information will be handled through data exploration and variable research to determine if there is much interest in inclusion of the
+variable or not. This is specifically important for variables with quality values above 50%, as it may be interesting to model limiting the observations and again limiting the variables. In addition, the data was
+pre-processed in the csv file to group similar values (trap in box, traps, trapped, all recoded to Trap, etc).
+
+<file:///C:/Users/gabri/Desktop/Desktop%20New/Desktop/PHD%20PROGRAM/2022%20Q4%20Fall%20Work/PStat%20231/Final/HormoneBase_Metadata.pdf>
+
+### Data Cleaning, Analysis, and Exploration
+
+In the data cleaning, we remove NA's when necessary, and remove columns when necessary. In the data analysis and exploration, we determine the best approach to determining the best model variables for the response variable. 
+
+First, we clean the data. The titles of the data need to be cleaned for easy reference, and the summary is listed below. 
+
+```{r}
+#clean names for referencing 
+hb <- as_tibble(data1) %>%
+  clean_names()
+
+#view data
+head(hb)
+summary(hb)
+```
+One of the important notes is to look at ranges of outcomes of the fem_bc_mean. In doing so, we want to look at the low, medium, high, and extreme stress ranges. Before cleaning the data, the mean for fem_bc_mean is 51.082 with a 3rd quarter of 20.705 and a max of 6667.380.
+
+Now that we have initially viewed the data, we can remove all observation rows that did not record fem_bc_mean and categorize the response variable to fem_bc_mean, the mean baseline of cort concentration in ng/mL is low under 8, medium under 24, high under 80, and extreme at or exceeding 80.
+
+```{r}
+hbf <- hb
+
+#remove na's from fem_a_mean
+hbf <- subset(hbf, fem_bc_mean != "")
+
+#categorize response
+hbf <- as_tibble(hbf) %>%
+  mutate(fem_bc = factor(if_else(fem_bc_mean < 8, "Low", if_else(fem_bc_mean < 24, "Medium", if_else(fem_bc_mean < 80, "High", "Extreme")))))
+```
+
+We can now remove male hormone variables as well as the variables dealing with external capture stressors including max_late_cort, max_latency_a, and latestresscort. We also drop variables with too many/granular data, or not enough data to make an impact with mostly NA values, including moult, breeding cycle,  and see the new summary of data.
+
+```{r}
+#drop male observations
+hbf <- hbf %>% dplyr::select(-contains('male'))
+
+#drop max_late_cort, max_latency_a, and latestresscort
+hbf <- hbf %>% dplyr::select(-contains('max'))
+hbf <- hbf %>% dplyr::select(-contains('cort'))
+hbf <- hbf %>% dplyr::select(-('fem_a_mean'))
+
+#drop unique naming (too many groupings)
+hbf <- hbf %>% dplyr::select(-('moult'))
+
+#view data
+summary(hbf)
+```
+There are 3 NA's in location variables so we want to remove those from the data to be evaluated.
+```{r}
+#remove na's from location
+hbf <- subset(hbf, latitude != "")
+hbf <- subset(hbf, longitude != "")
+hbf <- subset(hbf, elevation != "")
+```
+We also want to create factors for all categorical data. Once this occurs, we can view a barchart of the categorical fem_bc_mean
+```{r}
+#create factors
+hbf$vert_group <- as.factor(hbf$vert_group)
+hbf$major_stress_pop <- as.factor(hbf$major_stress_pop)
+hbf$fem_bc <- as.factor(hbf$fem_bc)
+hbf$genus <- as.factor(hbf$genus)
+hbf$species <- as.factor(hbf$species)
+hbf$common_name <- as.factor(hbf$common_name)
+hbf$breeding_cycle <- as.factor(hbf$breeding_cycle)
+hbf$life_stage <- as.factor(hbf$life_stage)
+hbf$capture_method <- as.factor(hbf$capture_method)
+hbf$sample_method <- as.factor(hbf$sample_method)
+
+#view fem_bc counts
+barchart(hbf$fem_bc)
+```
+
+### Data Splitting
+The variable of interest in this supervised learning method is the mean baseline cortisone concentration in females. After cleaning the data, we have 810 observations remaining. We will split the data 70/30 stratified by the response for an even distribution of model training, so 70% of the data will be utilized in training the model and the remaining 30% of the data will be utilized for testing the data
+
+```{r}
+#set the seed for reproducibility
+set.seed(37)
+
+#split the data
+split <- initial_split(hbf, strata = fem_bc, prop = 0.7)
+split
+
+#create training and testing sets from the split
+hbf_train <- training(split)
+hbf_test <- testing(split)
+```
+
+### Check Correlations
+Before getting into the model building, it is important to check correlations to see which variables may also need to be excluded. High correlations (close to 1 or -1) would indicate that two variables are related and should either be combined or only one must be selected. For objectivity, we will only look at variables correlated above 0.9. Fem_sc_mean appears to have a .95 correlation, which makes since because if an animal has a base level of stress of x, added stress factor should be x+y with slight variations between, indicating that we may additionally remove the fem_sc_mean parameter.
+```{r corr}
+cor_hbf <- as.tibble(hbf_train) %>%
+  correlate()
+cor_hbf %>%
+  stretch() %>%
+  ggplot(aes(x,y,fill=r)) +
+  geom_tile() +
+  geom_text(aes(label=as.character(fashion(r))))
+```
+```{r}
+hbf <- hbf %>% 
+  dplyr::select(-('fem_bc_mean'))
+hbf <- hbf %>%
+  dplyr::select(-('fem_sc_mean'))
+summary(hbf)
+```
+
+## Model Building
+
+Utilizing one recipe with determined variables, four models are created with the HormoneBase data to predict the categorical response of the mean of fem_bc. These models use different modeling techniques. The difference for these models is determined in performance reviews in later sections. Classification, boosted, random forest, and K-Nearest Neighbor models are reviewed. In each model, we set up the workflow, add the new model, and add the established recipe. We then set up the tuning grid with the parameters that we want tuned, and how many different levels of tuning Tune the model with certain parameters of choice Select the most accurate model from all of the tuning, finalize the workflow with those tuning parameters Fit that model with our workflow to the training data set.
+
+### Recipe Building
+Fold the training set using *v*-fold cross-validation, with `v = 5`. Stratify on the outcome variable.
+```{r vfold}
+hbf_fold <- vfold_cv(hbf_train, v = 5, strata = fem_bc)
+```
+
+Now we can set up a recipe to predict the categorized mean fem_bc with selected predictors, using dummy-codes for factors, and with all predictors centered and scaled. Also note capture_method, and sample_method are uninteresting since these do not affect base method. Genus and Species and common name are also extra granular when vert_group is analyzed. Breeding cycle and life stage is variable since these observations were made over various cycles and stages so are removed. Year is also deemed unnecessary since the major stress pop is more relevant. Thus, the recipe utilizes predictor variables: vert_group, latitude, longitude, elevation, and major_stress_pop.
+
+```{r recipe}
+hbf_recipe <- recipe(fem_bc ~ vert_group+ latitude+ longitude+ elevation+  major_stress_pop, data=hbf_train) %>%
+  step_dummy(c(vert_group, major_stress_pop)) %>%
+  step_normalize(all_predictors())
+```
+
+## Model Option Evaluation
+
+### Classification Model
+
+Next, we will set up a classification tree model and workflow for a classification tree plot.
+```{r}
+tree_spec <- decision_tree() %>%
+  set_engine("rpart")
+
+class_tree_spec <- tree_spec %>%
+  set_mode("classification")
+
+class_tree_fit <- class_tree_spec %>%
+  fit(fem_bc ~ vert_group+ latitude+ longitude+ elevation+ major_stress_pop, data=hbf_train)
+
+
+class_tree_fit %>%
+  extract_fit_engine() %>%
+  rpart.plot()
+
+class_tree_wf <- workflow() %>%
+  add_model(class_tree_spec %>% 
+              set_args(cost_complexity = tune())) %>%
+  add_recipe(hbf_recipe)
+
+
+param_grid <- grid_regular(cost_complexity(range = c(-3, -1)), levels = 4)
+
+tune_res <- tune_grid(
+  class_tree_wf, 
+  resamples = hbf_fold, 
+  grid = param_grid, 
+  metrics = metric_set(roc_auc)
+)
+
+```
+
+```{r rocauc}
+collect_metrics(tune_res)
+
+best_model <- select_best(tune_res, metric='roc_auc')
+hbf_tree_best <- finalize_workflow(class_tree_wf, best_model)
+hbf_tree_best_fit <- fit(hbf_tree_best, data=hbf_train)
+pruned_tree <- augment(hbf_tree_best_fit, hbf_train, type='prob') %>%
+  roc_auc(truth=fem_bc, estimate=.pred_Medium:.pred_Extreme)
+
+pruned_tree
+
+pruned_metrics <- collect_metrics(tune_res)
+mean(pruned_metrics$mean)
+
+```
+The ROC_AUC for the pruned tree is 0.251. And we'll evaluate this model with the training data coming up to a AUC estimate of a low 0.70. The ideal model with 100% description of a ROC AUC is 1.0 with 0% at 0.0.
+
+### Random Forest Model
+
+Now set up a random forest model and workflow by using the 'ranger' engine, setting 'importance = impurity', and tuning 'mtry', 'trees', and 'min_n'. Using the documentation for 'rand_forest()', 
+There are 5 variables to select from. As MTRY is the number of variables to randomly sample as, it shouldn't be less than 1 variable and it shouldn't be more than the max variables.
+
+```{r}
+hbf_forest_model <- rand_forest(mtry=tune(), trees=tune(), min_n=tune()) %>%
+  set_engine("ranger", importance="impurity") %>%
+  set_mode("classification")
+
+hbf_forest_wkflow <- workflow() %>%
+  add_model(hbf_forest_model) %>%
+  add_recipe(hbf_recipe)
+
+param1_grid <- grid_regular(mtry(range= c(1,8)),
+                          trees(range = c(10,20)),
+                           min_n(range = c(1,10)),
+                          levels = 5
+)
+
+```
+
+And now we must review this model through a ROC AUC metric Almost consistently, the mean ROC improves as more variables are added regardless of number of trees. Here, minimal node size of 5 appears to have best performance.
+
+```{r}
+tune_forest <- tune_grid(
+  hbf_forest_wkflow,
+  resamples = hbf_fold,
+  grid = param1_grid,
+  metrics = metric_set(roc_auc)
+)
+autoplot(tune_forest)
+```
+
+The ROC AUC of the best-performing random forest model on the folds is
+
+```{r}
+collect_metrics(tune_forest)
+
+best_complexity <- select_best(tune_forest, metric="roc_auc")
+
+hbf_forest_best <- finalize_workflow(hbf_forest_wkflow, best_complexity)
+
+hbf_forest_best_fit <- fit(hbf_forest_best, data=hbf_train)
+
+random_forest <- augment(hbf_forest_best_fit, hbf_train, type="prob") %>%
+  roc_auc(truth=fem_bc, estimate = .pred_Medium:.pred_Extreme)
+
+random_forest
+
+forest_metrics <- collect_metrics(tune_forest)
+mean(forest_metrics$mean)
+
+```
+The ROC AUC on the random forest is a mere 0.218. The AUC estimate for the random forest tune is higher than that of the estimate for the classification model, but not by enough to make this a quality model, so we must continue searching. The AUC for the random forest is better at 0.82.
+
+#### Variable Importance Plot
+Let's look at the variable importance plot, using `vip()` with the best-performing random forest model fit on the training set. 
+
+```{r vip}
+extract_fit_engine(hbf_forest_best_fit) %>%
+  vip()
+```
+It appears location has the highest indication of stress over stress factors and vert groups. This is a positive sign but since the model only has a ROC AUC of 21.8, it is not a quality determination.
+
+### Boosted Tree Model
+
+Now, we will set up the third model, a boosted tree model and workflow, using the 'xgboost' engine, and tuning 'trees' and a regular grid
+```{r boosted}
+hbf_boost_model <- boost_tree(trees = tune()) %>%
+  set_engine("xgboost") %>%
+  set_mode("classification")
+hbf_boost_wkflow <- workflow() %>%
+  add_model(hbf_boost_model) %>%
+  add_recipe(hbf_recipe)
+param2_grid <- grid_regular(trees(range(c(10,400))),levels=5)
+hbf_tune_boost <- tune_grid(hbf_boost_wkflow,
+                        resamples=hbf_fold,
+                        grid = param2_grid,
+                        metrics=metric_set(roc_auc))
+
+best_complexity <- select_best(hbf_tune_boost, metric="roc_auc")
+
+hbf_boost_best <- finalize_workflow(hbf_boost_wkflow, best_complexity)
+
+hbf_boost_best_fit <- fit(hbf_boost_best, data=hbf_train)
+
+boost <- augment(hbf_boost_best_fit, hbf_train, type="prob") %>%
+  roc_auc(truth=fem_bc, estimate = .pred_Medium:.pred_Extreme)
+autoplot(hbf_tune_boost)
+
+boost
+
+autoplot(hbf_tune_boost)
+
+boost_metrics <- collect_metrics(hbf_tune_boost)
+mean(boost_metrics$mean)
+```
+The ROC AUC for the boosted tree is less, with only 0.238. Across the folds, the boost tree does appear to show the most promise with an AUC of 0.85
+
+
+### K-Nearest Neighbor Plot
+Here we look at a weighted K nearest neighbor model.
+```{r}
+hbf_knn_model <- nearest_neighbor(neighbors = tune(),
+  mode = "classification") %>% 
+  set_engine("kknn")
+
+hbf_knn_workflow <- workflow() %>% 
+  add_model(hbf_knn_model) %>% 
+  add_recipe(hbf_recipe)
+# set-up tuning grid 
+hbf_knn_params <- parameters(hbf_knn_model)
+# define grid
+hbf_knn_grid <- grid_regular(hbf_knn_params, levels = 2)
+
+hbf_knn_tune <- tune_grid(hbf_knn_workflow,
+                          resamples = hbf_fold, 
+                          grid = hbf_knn_grid,
+                          metrics=metric_set(roc_auc))
+
+best_complexity <- select_best(hbf_knn_tune, metric="roc_auc")
+
+hbf_knn_best <- finalize_workflow(hbf_knn_workflow, best_complexity)
+
+hbf_knn_best_fit <- fit(hbf_knn_best, data=hbf_train)
+
+knn <- augment(hbf_knn_best_fit, hbf_train, type="prob") %>%
+  roc_auc(truth=fem_bc, estimate = .pred_Medium:.pred_Extreme)
+
+knn
+
+autoplot(hbf_knn_tune)
+
+knn_metrics <- collect_metrics(hbf_knn_tune)
+mean(knn_metrics$mean)
+```
+The ROC AUC for the KNN model has an estimate of 0.249 which is the second best performer. KNN ends up lowering the AUC value down to 0.80, so does not perform as well.
+
+## Best Fit Model
+
+The metric of performance evaluated is roc_auc because that is what shows the most significant level of efficiency in a classification model where the data is not perfectly balanced. This essentially calculates
+the area under the curve for the receiver operating characteristic (ROC) curve, which highlights the trade-off between sensibility and sensitivity.  
+
+The tuned boosted model performs the best AUC, but the classification tree performs the best ROC AUC, but only just slightly better than the boosted, so we look at both of the models against the test data.
+```{r}
+knn
+boost
+pruned_tree
+random_forest
+
+boost_metrics <- collect_metrics(hbf_tune_boost)
+forest_metrics <- collect_metrics(tune_forest)
+pruned_metrics <- collect_metrics(tune_res)
+knn_metrics <- collect_metrics(hbf_knn_tune)
+
+
+
+metrics_mean <- data.frame(AUC = c(mean(boost_metrics$mean), mean(forest_metrics$mean), mean(pruned_metrics$mean), mean(knn_metrics$mean)),
+                           Name = c("Boost","Random Forest", "Pruned Tree", "KNN"))
+metrics_mean
+```
+Clearly boost has the best score against the training data, so it will now be evaluated against the testing data. The AUC value of the best-performing boost model on the testing set will be calculated with a visual for the ROC curve, followed up with a visualization of a confusion matrix heat map.
+
+```{r}
+best_complexity <- select_best(hbf_tune_boost, metric="roc_auc")
+
+hbf_boost_best <- finalize_workflow(hbf_boost_wkflow, best_complexity)
+
+hbf_boost_best_fit <- fit(hbf_boost_best, data=hbf_train)
+
+boost_mod <- augment(hbf_boost_best_fit, hbf_train, type="prob") %>%
+  roc_auc(truth=fem_bc, estimate = .pred_Medium:.pred_Extreme)
+
+boost_mod
+
+augment(hbf_boost_best_fit, hbf_test) %>%
+  roc_curve(truth=fem_bc, estimate = .pred_Medium:.pred_Extreme) %>% 
+  autoplot()
+```
+Medium predictions on the test data appear to perform almost decently  but the remainder of the values are quite poorly predicted.
+
+## Conclusion
+Although we see the location is highly predictive for the categorical female corticosterone/cortisol stress levels in animals around the world, the data gathered relevant to the stress levels is minimal and only appears to address less than 25% of the response. What this means is, even though the boosted model tuned performed the best, it still doesn't do a great job at actually predicting the response variable so additional data collections, variables, and studies must be performed to identify the reasons for variable stress hormone concentrations.
